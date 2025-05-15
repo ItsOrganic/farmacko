@@ -1,0 +1,9 @@
+user-mode: "admin"
+db:
+  user-name: "postgres"
+  password: "root"
+  host: "172.17.0.2"
+  port: 5432
+  database: "coupon-service"
+  driver: "postgres"
+  ssl-mode: "disable"

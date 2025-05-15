@@ -1,0 +1,170 @@
+definitions:
+  models.Coupon:
+    properties:
+      applicable_categories:
+        items:
+          type: string
+        type: array
+      applicable_medicine_ids:
+        items:
+          type: string
+        type: array
+      coupon_code:
+        type: string
+      discount_type:
+        description: '"percentage" or "flat"'
+        type: string
+      discount_value:
+        type: number
+      expiry_date:
+        description: '"YYYY-MM-DD HH:MM:SS"'
+        type: string
+      max_usage_per_user:
+        type: integer
+      min_order_value:
+        type: number
+      terms_and_conditions:
+        type: string
+      usage_type:
+        description: '"one_time" , "multi_use" , or "time_based"'
+        type: string
+      valid_time_window:
+        type: string
+    type: object
+  models.Order:
+    properties:
+      cart_items:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+      coupon_code:
+        type: string
+      order_total:
+        type: number
+      timestamp:
+        type: string
+    type: object
+  models.Product:
+    properties:
+      category:
+        type: string
+      id:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /coupon/cache:
+    get:
+      description: Retrieve all cached coupon data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: cache data
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all cache
+      tags:
+      - Cache
+  /coupons:
+    post:
+      consumes:
+      - application/json
+      description: Create a new coupon with the provided details
+      parameters:
+      - description: Coupon details
+        in: body
+        name: coupon
+        required: true
+        schema:
+          $ref: '#/definitions/models.Coupon'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'message: Coupon created successfully'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 'error: Bad Request'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 'error: Unauthorized'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new coupon
+      tags:
+      - Coupons
+  /coupons/applicable:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve a list of applicable coupons for the given order
+      parameters:
+      - description: Order details
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/models.Order'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'applicable_coupons: List of applicable coupons'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'error: Bad Request'
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Applicable Coupons
+      tags:
+      - Coupons
+  /coupons/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validate a coupon code for the given order
+      parameters:
+      - description: Order details
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/models.Order'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'is_valid: true, discount: {items_discount: float64}, message:
+            Coupon applied successfully'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'is_valid: false, reason: string'
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Validate Coupon
+      tags:
+      - Coupons
+swagger: "2.0"
