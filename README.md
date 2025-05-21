@@ -1,198 +1,141 @@
-# Farmako - Coupon System
+# Cloud-Sek Blog Application
 
-Farmako is a backend system for managing and validating coupons in a medicine ordering platform. This project is built in Go and follows a modular, production-ready architecture.
+A modern blog application with a Go backend using Gin framework, PostgreSQL database, and Markdown support.
 
-## Architecture
+## Architecture Overview
 
-The architecture is designed to ensure modularity, scalability, and maintainability:
 ```
-┌─────────────────┐
-│   Client (API)  │
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│  Gin Framework  │
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│  Service Layer  │
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│Repository Layer │
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│PostgreSQL+Cache │
-└─────────────────┘
+┌───────────┐     ┌───────────┐     ┌───────────┐     ┌───────────┐
+│ HTTP API  │────▶│  Service  │────▶│ Repository│────▶│ PostgreSQL│
+│ (Gin)     │◀────│  Layer    │◀────│  Layer    │◀────│  Database │
+└───────────┘     └───────────┘     └───────────┘     └───────────┘
+       │                 │
+       │                 │
+       ▼                 ▼
+┌───────────┐     ┌───────────┐
+│  Swagger  │     │ In-Memory │
+│    Docs   │     │   Cache   │
+└───────────┘     └───────────┘
+Gin (HTTP API) <-> Service Layer <-> Repository <-> PostgreSQL
 ```
-## Folder Structure
-```
-Farmako/
-├── apploader/         # Application initialization
-├── cache/             # Cache management
-├── controller/        # API routes and controllers
-├── database/          # Database connection and repositories
-│   └── migration/     # Database migration files
-├── docs/              # Swagger documentation
-├── handler/           # Request handlers
-├── models/            # Data models
-├── service/           # Business logic
-├── utils/             # Utility functions
-├── config/            # Configuration files
-├── Dockerfile         # Container configuration
-├── go.mod             # Go module dependencies
-├── go.sum             # Go module checksums
-└── main.go            # Application entry point
-```
-## Setup Instructions
+**Key Features:**
+- Markdown support in posts/comments (converted to HTML for rich text display)
+- Swagger API documentation
+- Layered architecture for separation of concerns
+- In-memory caching for improved performance
 
-### Running with Docker
+## Directory Structure
 
-1. Start the PostgreSQL database:
 ```
-docker run --name coupon-store -e POSTGRES_PASSWORD=root -e POSTGRES_DB=coupon-service -p 5432:5432 -d postgres:latest
+├── apploader/     # Configuration and cache loader
+├── cache/         # In-memory cache implementation
+├── config/        # YAML configuration for database
+├── constants/     # SQL queries, HTML templates
+├── controller/    # Gin route definitions
+├── database/      # Database connection and repository logic
+├── docs/          # Swagger documentation (auto-generated)
+├── globals/       # Global configuration, database, and cache
+├── handler/       # HTTP request handlers
+├── models/        # Data models
+├── service/       # Business logic layer
+├── utils/         # Utilities (Markdown-to-HTML conversion)
+├── main.go        # Application entrypoint
+├── Dockerfile     # Container build definition
+└── README.md      # This documentation
 ```
-3. Run database migrations:
-```
-migrate -database "postgres://postgres:root@localhost:5432/coupon-service?sslmode=disable" -path ./database/migration up
-```
-5. Build and start the application:
-```
-docker build -t farmako-app .
-docker run -d -p 8080:8080 --name farmako-app farmako-app
-```
-6. Access the application:
-   - Swagger UI: ```http://localhost:8080/swagger/index.html```
-   - API Endpoints: ```http://localhost:8080```
 
+## Getting Started
 
-## API Endpoints
+### 1. Start PostgreSQL with Docker
 
-### 1. Create a Coupon
-POST /coupons
+```bash
+docker run --name cloudsek-post-store -e POSTGRES_PASSWORD=root -e POSTGRES_DB=post-comments-service -p 5432:5432 -d postgres:latest
 ```
-Request Body:
-{
-    "coupon_code": "SAVE20",
-    "expiry_date": "2025-05-19 18:54:15",
-    "applicable_medicine_ids":["med_123","random"],
-    "applicable_categories":["painkillers", "painrevivers"],
-    "min_order_value":20,
-    "terms_and_conditions":"T&C applies",
-    "discount_type":"flat",
-    "discount_value":20,
-    "max_usage_per_user":2
-}
-```
-```
-Response:
-{
-    "message": "Coupon created successfully"
-}
-```
-### 2. Get Applicable Coupons
-GET /coupons/applicable
-```
-Request Body:
-{
-    "cart_items": [
-        { "id": "med_123", "category": "painkiller" }
-    ],
-    "order_total": 700
-}
-```
-```
-Response:
-{
-    "applicable_coupons": [
-        {
-            "coupon_code": "SAVE20",
-            "discount_value": 20
-        }
-    ]
-}
-```
-### 3. Validate a Coupon
-POST /coupons/validate
-```
-Request Body:
-{
-    "coupon_code": "SAVE20",
-    "cart_items": [
-        { "id": "med_123", "category": "painkiller" }
-    ],
-    "order_total": 700,
-    "timestamp": "2025-05-05T15:00:00Z"
-}
-```
-```
-Success Response:
-{
-    "is_valid": true,
-    "discount": {
-        "items_discount": 140,
-        "charges_discount": 0
-    },
-    "message": "Coupon applied successfully"
-}
-```
-```
-Failure Response:
-{
-  "is_valid": false,
-  "reason": "Invalid coupon code"
-}
-```
-### 4. Fetch All Cached Coupons
-GET /coupon/cache
-```
-Response:
-{
-    "cache": {
-        "SAVE20": {
-            "coupon_code": "SAVE20",
-            "expiry_date": "2025-05-19 18:54:15",
-            "usage_type": "one_time",
-            "applicable_medicine_ids": ["mde","bjr"],
-            "applicable_categories": ["medics", "ores"],
-            "min_order_value": 20,
-            "valid_time_window": "24h",
-            "terms_and_conditions": "Cannot be used on medical devices",
-            "discount_type": "percentage",
-            "discount_value": 20,
-            "max_usage_per_user": 2
-        }
-    }
-}
-```
-## Key Features
 
-- Coupon Creation: Create and manage discount coupons
-- Validation: Validate coupons against order criteria
-- Caching: In-memory caching for fast coupon lookups
-- Concurrency: Thread-safe operations with mutex locks
-- Persistence: PostgreSQL database for reliable storage
-- API Documentation: Swagger UI for interactive API exploration
+### 2. Run Database Migrations
 
-## Technologies Used
+```bash
+# Install the migrate tool
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-- Go: Backend programming language
-- Gin: Web framework
-- PostgreSQL: Database
-- Swagger: API documentation
-- Docker: Containerization
-- Migrate: Database migration tool
+# Run migrations
+migrate -database "postgres://postgres:root@localhost:5432/post-comments-service?sslmode=disable" -path ./database/migration up
+```
 
-## Design Patterns
+### 3. Configure Database Connection
 
-- Repository Pattern: Abstracts data access logic
-- Service Layer: Contains business logic
-- Dependency Injection: Promotes loose coupling
-- Middleware Pattern: For request processing pipeline
+Edit if running local POSTGRES `config/config.yaml`:
 
-## Concurrency & Caching
+```yaml
+db:
+  user-name: "postgres"
+  password: "root"
+  host: "localhost"
+  port: 5432
+  database: "post-comments-service"
+  driver: "postgres"
+  ssl-mode: "disable"
+```
 
-- RWMutex: Used for thread-safe cache operations
-- In-Memory Cache: Fast access to frequently used coupon data
-- Transaction Safety: Ensures data consistency during concurrent operations
+### 4. Build and Run Locally
+
+```bash
+go build -o blog-app .
+./blog-app
+```
+
+### 5. Build and Run with Docker
+
+```bash
+# Build the Docker image
+docker build -t cloudsek-app .
+
+# Run the container
+docker run -d -p 8080:8080 --name cloudsek-app cloudsek-app
+```
+
+## Usage
+
+### Access Points
+
+- **API**: http://localhost:8080
+- **Swagger Documentation**: http://localhost:8080/swagger/index.html
+
+### Example API Usage
+
+#### Create a Post
+
+```bash
+curl -X POST http://localhost:8080/create \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My First Post","description":"This is **bold** and *italic* text with a link"}'
+```
+
+#### Add a Comment
+
+```bash
+curl -X POST http://localhost:8080/post/1/comment \
+  -H "Content-Type: application/json" \
+  -d '{"author":"John","message":"This is a **great** post!"}'
+```
+
+#### View a Post
+
+```bash
+curl http://localhost:8080/post/1
+```
+
+#### View Comments (HTML)
+
+```bash
+curl http://localhost:8080/post/1/comments
+```
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Swagger error | Run `swag init` in project root |
+| Database connection error | Check `config/config.yaml` and PostgreSQL container status |
+| Docker container issues | Check logs with `docker logs cloudsek-app` |
+| Missing Go dependencies | Run `go mod tidy` to install required packages |
